@@ -57,7 +57,7 @@ exports.run = async (client, message, args) => {
                 url: `https://assetgame.roblox.com/Thumbs/Avatar.ashx?userid=${id}`
               },              
           footer: {
-          text: "Created by Danial#0001 | Moderna Hotels"
+          text: "Created by Danial#0001"
               }
              }
            });
