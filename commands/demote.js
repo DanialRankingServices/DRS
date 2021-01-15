@@ -2,44 +2,141 @@ const roblox = require('noblox.js');
 const chalk = require('chalk');
 require('dotenv').config();
 
+async function getRankName(func_group, func_user){
+    let rolename = await roblox.getRankNameInGroup(func_group, func_user);
+    return rolename;
+}
+
+async function getRankID(func_group, func_user){
+    let role = await roblox.getRankInGroup(func_group, func_user);
+    return role;
+}
+
+async function getRankFromName(func_rankname, func_group){
+    let roles = await roblox.getRoles(func_group);
+    let role = await roles.find(rank => rank.name == func_rankname);
+    if(!role){
+        return 'NOT_FOUND';
+    }
+    return role.rank;
+}
+
 exports.run = async (client, message, args) => {
-    let shout;
-    try {
-        shout = await roblox.getShout(Number(process.env.groupId));
-    } catch (err) {
-        console.log(chalk.red('An error occured when running the currentshout command: ' + err));
+    if(!message.member.roles.cache.some(role =>["Ranking Permissions"].includes(role.name))){
         return message.channel.send({embed: {
             color: 16733013,
-            description: `Oops! An unexpected error has occured. It has been logged to the bot console.`,
+            description: "You need to have the `Ranking Permissions` role to run this command.",
+            author: {
+          name: message.author.tag,
+          icon_url: message.author.displayAvatarURL()
+        },
+        footer: {
+          text: "Created by Danial#0001"
+        }
+      }
+   });
+    }
+    let username = args[0];
+    if(!username){
+        return message.channel.send({embed: {
+            color: 16733013,
+            description: "The username argument is required.",
+             author: {
+          name: message.author.tag,
+          icon_url: message.author.displayAvatarURL()
+        },
+        footer: {
+          text: "Created by Danial#0001"
+        }
+      }
+   });
+    }
+   let reason = args.slice(1).join(" ");
+    if(!reason){
+        return message.channel.send({embed: {
+            color: 16733013,
+            description: "The reason argument is required.",
+            author: {
+          name: message.author.tag,
+          icon_url: message.author.displayAvatarURL()
+        },
+        footer: {
+          text: "Created by Danial#0001"
+        }
+      }
+   });
+    }
+    let id;
+    try {
+        id = await roblox.getIdFromUsername(username);
+    } catch {
+        return message.channel.send({embed: {
+            color: 16733013,
+            description: `Oops! ${username} is not a Roblox user. Perhaps you misspelled?`,
+            author: {
+          name: message.author.tag,
+          icon_url: message.author.displayAvatarURL()
+        },
+        footer: {
+          text: "Created by Danial#0001"
+        }
+      }
+   });
+    }
+    let rankInGroup = await getRankID(Number(process.env.groupId), id);
+    let rankNameInGroup = await getRankName(Number(process.env.groupId), id);
+    if(Number(process.env.maximumRank) <= rankInGroup){
+        return message.channel.send({embed: {
+            color: 16733013,
+            description: "This rank cannot be ranked by this bot.",
             author: {
                 name: message.author.tag,
                 icon_url: message.author.displayAvatarURL()
             }
         }});
     }
-  if(shout.body){
-    message.channel.send({embed: {
-        color: 7948427,
-        description: `**Posted by ${shout.poster.username}**\n${shout.body}`,
-        author: {
-            name: message.author.tag,
-            icon_url: message.author.displayAvatarURL()
+    let demoteResponse;
+    try {
+        demoteResponse = await roblox.demote(Number(process.env.groupId), id);
+    } catch (err) {
+        console.log(chalk.red('An error occured when running the demote command: ' + err));
+        return message.channel.send({embed: {
+            color: 16733013,
+            description: `Oops! An unexpected error has occured. It has been logged to the bot console.`,
+            author: {
+          name: message.author.tag,
+          icon_url: message.author.displayAvatarURL()
         },
-        thumbnail: {
-            url: `http://www.roblox.com/Thumbs/Avatar.ashx?x=150&y=150&format=png&username=${shout.poster.username}`
+        footer: {
+          text: "Created by Danial#0001"
+        }
+      }
+   });
+    }
+    let newRankName = await getRankName(Number(process.env.groupId), id);
+    let newRank = await getRankID(Number(process.env.groupId), id);
+    message.channel.send(`**Success :tada:!** ${username} has been promoted from ${rankNameInGroup} (${rankInGroup}) to ${demoteResponse.newRole.name} (${demoteResponse.newRole.rank})`);
+
+    if(process.env.rankingchannelid === 'false') return;
+    let logchannel = await message.guild.channels.cache.get(process.env.rankingchannelid);
+    logchannel.send({embed: {
+        color: 2127726,
+        description: `${username} has been demoted to ${demoteResponse.newRole.name}.
+        
+        Logging info:
+        Old Rank: ${rankNameInGroup} (${rankInGroup})
+        New Rank: ${demoteResponse.newRole.name} (${demoteResponse.newRole.rank})
+        Reason: ${reason}
+        
+        Ranker Info:
+        Username: ${message.author.username}
+        Discord ID: ${message.author.id}
+        Tag: <@${message.author.id}>`,
+          author: {
+          name: "Ranking Logs",
+        },
+        footer: {
+          text: "Created by Danial#0001"
         }
     }});
-  } else {
-        message.channel.send({embed: {
-        color: 7948427,
-        description: `**Posted by ${shout.poster.username}**\n*Shout cleared.*`,
-        author: {
-            name: message.author.tag,
-            icon_url: message.author.displayAvatarURL()
-        },
-        thumbnail: {
-            url: `http://www.roblox.com/Thumbs/Avatar.ashx?x=150&y=150&format=png&username=${shout.poster.username}`
-        }
-    }});
-  }
 }
